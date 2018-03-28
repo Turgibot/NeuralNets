@@ -13,17 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-'''
-Create a tfrecord from given data
-'''
-
-import os
-import sys
-import random
-import re
-
 import tensorflow as tf
-import cv2
 import numpy as np
+import tensorflow.contrib.layers as layers
 
+
+class Model:
+
+    def getModel(self, X, Y):
+        x=9
 
