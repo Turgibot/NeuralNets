@@ -1,4 +1,4 @@
-# Copyright 2018 Guy Tordjman. All Rights Reserved.
+  # Copyright 2018 Guy Tordjman. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,7 +43,9 @@ writer.close()
 
 
 steps specific for Kitti dataset
-Step 1: Split
+Step 1: Split labels to train and test labels
+Step 2: Resize images according to parameter <shrink> 
+Step 3: 
 '''
 
 
@@ -61,11 +63,14 @@ SAMPLES_PER_FILES = 200
 CWD = os.getcwd()
 CODE_DIR = os.path.abspath(os.path.join(CWD, os.pardir))
 ROOT_DIR = os.path.abspath(os.path.join(CODE_DIR, os.pardir))
-PATH_TFRECORDS = os.path.join(CODE_DIR, 'TFRECORDS')
+PATH_TFRECORDS = os.path.join(CODE_DIR, 'TFRecords')
+PATH_TFRECORDS_TRAIN = os.path.join(PATH_TFRECORDS, 'Training')
+PATH_TFRECORDS_TEST = os.path.join(PATH_TFRECORDS, 'Testing')
 DATA_DIR = os.path.join(ROOT_DIR, 'Data')
 KITTY_DIR = os.path.join(DATA_DIR, 'Kitti')
 PATH_IMAGES = os.path.join(KITTY_DIR, 'Images')
 PATH_LABELS = os.path.join(KITTY_DIR, 'Labels')
+
 
 CLASSES = {
     'Pedestrian': 0,
@@ -77,10 +82,39 @@ CLASSES = {
 def start():
     # create a folder for the tfrecords if doesn't exist'''
     utils.create_dir(PATH_TFRECORDS)
+    utils.create_dir(PATH_TFRECORDS_TRAIN)
+    utils.create_dir(PATH_TFRECORDS_TEST)
     train_labels, test_labels = utils.random_split_kitti(PATH_LABELS, 0.8, CLASSES, RANDOM_SEED)
 
     # Step 1: create a writer to write tfrecord to that file
+    labels_tuple = (train_labels, test_labels)
+    for l in range(len(labels_tuple)):
+        files_counter = 0
+        labels_src = labels_tuple[l]
+        labels_keys = list(labels_src)
+        labels_num = len(labels_src)
 
+        if l is 0:
+            tfrecord_folder = PATH_TFRECORDS_TRAIN
+        else:
+            tfrecord_folder = PATH_TFRECORDS_TEST
+        i = 0
+        while i < labels_num:
+            sys.stdout.write('\r>> Creating TFRecord file number %d ' % files_counter)
+            tfrecord_file = os.path.join(tfrecord_folder, 'train_'+'%d' % files_counter + '.tfrecord')
+            utils.create_file(tfrecord_file)
+            with tf.python_io.TFRecordWriter(tfrecord_file) as writer:
+                j = 0
+                while i < labels_num and j < SAMPLES_PER_FILES:
+                    sys.stdout.write('\r>> Converting image %d/%d ' % (i + 1, labels_num))
+                    sys.stdout.flush()
+                    image_number = labels_keys[i]
+                    image_path = os.path.join(PATH_IMAGES, image_number + '.png')
+                    utils.append_to_tfrecord(image_path, labels_src[image_number], writer)
+                    i += 1
+                    j += 1
+
+            files_counter += 1
 
 
 start()

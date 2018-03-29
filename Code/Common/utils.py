@@ -17,7 +17,8 @@ from PIL import Image
 import tensorflow as tf
 import numpy as np
 import random
-
+import sys
+import cv2
 # to create a tf.Feature object a conversion to tf.Train>Feature is required according to the correct dtype.
 # first check if input value is an instance of tuple or list - if a scalar insert it to a list
 # then return tf.train.Feature(<type>_list=tf.train.<type>List(value=values))
@@ -67,7 +68,7 @@ def get_image_binary(filename):
     image = Image.open(filename)
     image = np.asarray(image, np.uint8)
     shape = np.array(image.shape, np.int32)
-    return shape.tobytes(), image.tobytes()  # convert image to raw data bytes in the array.
+    return shape, image.tobytes()  # convert image to raw data bytes in the array.
 
 
 def create_dir(path):
@@ -75,6 +76,13 @@ def create_dir(path):
         os.mkdir(path)
     except OSError:
         pass
+
+
+def create_file(path):
+    try:
+        open(path, 'a').close()
+    except OSError:
+        sys.stdout.write('creating a file error in '+path)
 
 
 '''prepare kitti data with cross validation'''
@@ -108,3 +116,44 @@ def random_split_kitti(label_src, test_size=0.75, classes={}, seed=0):
     training_labels = dict(list(processed_labels.items())[:training_count])
     testing_labels = dict(list(processed_labels.items())[training_count:])
     return training_labels, testing_labels
+
+
+def append_to_tfrecord(image, label, writer):
+
+    class_list = []
+    bbox_x1_list = []
+    bbox_y1_list = []
+    bbox_x2_list = []
+    bbox_y2_list = []
+
+    for obj in label:
+        class_num = obj[0]
+        class_list.append(class_num)
+
+        # Bounding Box
+        bbox_x1 = float(obj[1])
+        bbox_y1 = float(obj[2])
+        bbox_x2 = float(obj[3])
+        bbox_y2 = float(obj[4])
+        bbox_x1_list.append(bbox_x1)
+        bbox_y1_list.append(bbox_y1)
+        bbox_x2_list.append(bbox_x2)
+        bbox_y2_list.append(bbox_y2)
+
+
+
+    shape, image_data = get_image_binary(image)
+
+    example = tf.train.Example(features=tf.train.Features(feature={
+        'image/encoded': bytes_feature(image_data),
+        'image/height': int64_feature(shape[0]),
+        'image/width': int64_feature(shape[1]),
+        'image/channels': int64_feature(shape[2]),
+        'image/object/bbox/xmin': float_feature(bbox_x1_list),
+        'image/object/bbox/xmax': float_feature(bbox_x2_list),
+        'image/object/bbox/ymin': float_feature(bbox_y1_list),
+        'image/object/bbox/ymax': float_feature(bbox_y2_list),
+        'image/object/bbox/label': int64_feature(class_list)
+    }))
+
+    writer.write(example.SerializeToString())
