@@ -53,6 +53,7 @@ def image_to_basic_example(image_data, image_format, height, width, class_id):
         'image/width': int64_feature(width),
     }, name='features'))
 
+
 # image to KITTI dataset tf.train.Example instance
 def image_to_kitti_example(image_data, shape, bb_list, label_list):
     return tf.train.Example(features=tf.train.Features(feature={
@@ -69,6 +70,10 @@ def get_image_binary(filename):
     image = np.asarray(image, np.uint8)
     shape = np.array(image.shape, np.int32)
     return shape, image.tobytes()  # convert image to raw data bytes in the array.
+
+
+def get_only_files(dir_path):
+    return [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
 
 
 def create_dir(path):
@@ -90,7 +95,7 @@ def create_file(path):
 
 def random_split_kitti(label_src, test_size=0.75, classes={}, seed=0):
 
-    label_files = [f for f in os.listdir(label_src) if os.path.isfile(os.path.join(label_src, f))]
+    label_files = get_only_files(label_src)
     processed_labels = {}
     files_count = len(label_files)
     random.seed(seed)
@@ -157,3 +162,20 @@ def append_to_tfrecord(image, label, writer):
     }))
 
     writer.write(example.SerializeToString())
+
+
+def parse_kitti_tfrecord(example_proto):
+    features = {
+        'image/encoded': tf.FixedLenFeature([], tf.string),
+        'image/height': tf.FixedLenFeature([], tf.int64),
+        'image/width': tf.FixedLenFeature([], tf.int64),
+        'image/channels': tf.FixedLenFeature([], tf.int64),
+        'image/object/bbox/xmin': tf.FixedLenFeature([], tf.float32),
+        'image/object/bbox/xmax': tf.FixedLenFeature([], tf.float32),
+        'image/object/bbox/ymin': tf.FixedLenFeature([], tf.float32),
+        'image/object/bbox/ymax': tf.FixedLenFeature([], tf.float32),
+        'image/object/bbox/label': tf.FixedLenFeature([], tf.int64)
+    }
+    parsed = tf.parse_single_example(example_proto, features)
+    return parsed['image/encoded'], parsed['image/height']
+    #,parsed[],parsed[],parsed[],parsed[],parsed[],parsed[],parsed[],
